@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Manrope", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f1f3f5;
+  --color-ink: #20242b;
+  --color-muted: #646b75;
+  --color-line: #d8dde5;
+  --color-accent: #d4a72c;
+  --color-accent-ink: #111111;
+  --color-accent-soft: #fff5d6;
+  --color-ok: #18743b;
+  --color-warn: #8a5b00;
+  --color-bad: #b42318;
+}
+
+:root {
+  color-scheme: light;
+}
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+.badge-code {
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}

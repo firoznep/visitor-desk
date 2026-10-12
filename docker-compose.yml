@@ -1,0 +1,77 @@
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-visitors}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./db/init:/docker-entrypoint-initdb.d:ro,Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-visitors}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend_net]
+    # No ports published: only the api service on the same network can reach Postgres.
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    depends_on:
+      - db
+    networks: [backend_net]
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      # Schema owner connection (superuser), distinct from the API's restricted DATABASE_URL.
+      MIGRATION_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@db:5432/${POSTGRES_DB:-visitors}
+    depends_on:
+      - db
+    networks: [backend_net]
+    entrypoint: ["alembic", "upgrade", "head"]
+    profiles: ["tools"]   # run on demand: docker compose --profile tools run --rm migrate
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    restart: unless-stopped
+    networks: [backend_net]
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "8088:80"
+      - "4433:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro,Z
+      - ./nginx/proxy_params.conf:/etc/nginx/proxy_params.conf:ro,Z
+      - ./nginx/certs:/etc/nginx/certs:ro,Z
+    depends_on: [api, frontend]
+    networks: [backend_net]
+
+networks:
+  backend_net:
+    driver: bridge
+
+volumes:
+  pgdata:
+
